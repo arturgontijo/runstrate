@@ -2,21 +2,17 @@ mod account;
 mod externalities;
 mod mock;
 mod rpc;
+mod rpc_types;
 
-/// -------------------------------------------------------------------
-use externalities::new_test_ext;
-/// Add runtime crate here -------------------------------------------
+/// Add runtime here -------------------------------------------
 use mock::{
-    Address, Block as TargetBlock, Header, Runtime as TargetRuntime, RuntimeOrigin, System,
-    UncheckedExtrinsic,
+    Address, Block as TargetBlock, BlockNumber, Header, Runtime as TargetRuntime, RuntimeOrigin,
+    System, UncheckedExtrinsic,
 };
 
-use account::get_account_id;
-use rpc::{MockApiServer, MockRpcServer, StorageKey};
-
-use std::collections::HashMap;
 use std::{
-    io::{Error, ErrorKind},
+    collections::HashMap,
+    default::Default,
     sync::{Arc, Mutex},
     thread, time,
 };
@@ -25,13 +21,15 @@ use jsonrpsee::{server::ServerBuilder, RpcModule};
 
 use codec::Decode;
 use frame_support::dispatch::GetDispatchInfo;
+use sc_client_api::StorageNotifications;
 use sp_core::{blake2_256, Blake2Hasher, Encode, H256};
 use sp_runtime::traits::{Block as BlockT, Dispatchable, Header as HeaderT};
-
-use crate::mock::BlockNumber;
-use crate::rpc::{BlockHash, TransactionStatus};
-use sc_client_api::StorageNotifications;
 use sp_state_machine::{Backend, InMemoryBackend};
+
+use crate::account::get_account_id;
+use crate::externalities::new_test_ext;
+use crate::rpc::{MockApiServer, MockRpcServer};
+use crate::rpc_types::{BlockHash, StorageKey, TransactionStatus};
 
 pub type Runtime = TargetRuntime;
 pub type Block = TargetBlock;
@@ -42,6 +40,8 @@ pub const MILLISECS_PER_BLOCK: u64 = 6000;
 
 pub const ENDPOINT: &str = "127.0.0.1:9944";
 pub const MEGABYTE: u32 = 1025 * 1024;
+
+pub type ExtrinsicHashAndStatus = (Vec<(H256, Extrinsic)>, Vec<(H256, ())>);
 
 pub struct BlockChainData {
     pub head: TargetBlock,
@@ -94,22 +94,25 @@ async fn run_server(db: Arc<Mutex<Database>>) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn hex_to_xt(bytes: String) -> Result<Extrinsic, Error> {
+fn hex_to_xt(bytes: String) -> Result<Extrinsic, ()> {
     let ext = hex::decode(&bytes[2..]).expect("Cannot decode extrinsic data.");
     let extrinsic = match Extrinsic::decode(&mut &ext[..]) {
         Ok(c) => c,
-        Err(e) => return Err(Error::new(ErrorKind::InvalidInput, e)),
+        Err(_) => return Err(()),
     };
     Ok(extrinsic)
 }
 
-fn check_pending_extrinsics(extrinsics: Vec<String>) -> Result<Vec<(H256, Extrinsic)>, Error> {
-    let mut pending_extrinsics = vec![];
+fn check_pending_extrinsics(extrinsics: Vec<String>) -> ExtrinsicHashAndStatus {
+    let mut pending_extrinsics = (vec![], vec![]);
     for xt in extrinsics {
         let xt_hash = H256::from_slice(&blake2_256(xt.as_bytes()));
-        pending_extrinsics.push((xt_hash, hex_to_xt(xt)?));
+        match hex_to_xt(xt) {
+            Ok(xt) => pending_extrinsics.0.push((xt_hash, xt)),
+            _ => pending_extrinsics.1.push((xt_hash, ())),
+        }
     }
-    Ok(pending_extrinsics)
+    pending_extrinsics
 }
 
 fn build_block(header: Header, extrinsics: Vec<Extrinsic>) -> TargetBlock {
@@ -163,8 +166,11 @@ async fn main() -> anyhow::Result<()> {
         let mut header = block.clone().header;
 
         let mut db = mutex_db.lock().unwrap();
-        let extrinsics = check_pending_extrinsics(db.pool.clone())?;
-        let mut extrinsics_status = vec![];
+        let (extrinsics, invalid) = check_pending_extrinsics(db.pool.clone());
+        let mut extrinsics_status: Vec<_> = invalid
+            .iter()
+            .map(|h| (h.0, TransactionStatus::Invalid))
+            .collect();
 
         let _ = db.externalities.execute_with(|| -> anyhow::Result<()> {
             // Manually resetting Events.
@@ -177,6 +183,7 @@ async fn main() -> anyhow::Result<()> {
                 println!("Extrinsics : {:?}", extrinsics.clone());
                 for (idx, (xt_hash, uxt)) in extrinsics.clone().into_iter().enumerate() {
                     let xt_status = TransactionStatus::InBlock((Default::default(), idx));
+                    extrinsics_status.push((xt_hash, xt_status));
                     let encoded = uxt.encode();
                     System::note_extrinsic(encoded);
                     let dispatch_info = uxt.get_dispatch_info();
@@ -197,8 +204,6 @@ async fn main() -> anyhow::Result<()> {
 
                     println!("Extrinsic->: (signer={:?} res={:?})", signer, r);
                     println!("Events     : {:?}", System::events());
-
-                    extrinsics_status.push((xt_hash, xt_status));
                 }
                 System::note_finished_extrinsics();
             };
