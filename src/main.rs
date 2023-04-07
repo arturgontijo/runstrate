@@ -6,10 +6,16 @@ mod rpc_types;
 
 /// Add runtime here -------------------------------------------
 use mock::{
-    Address, Block as TargetBlock, BlockNumber, Header, Runtime as TargetRuntime, RuntimeOrigin,
-    System, UncheckedExtrinsic,
+    Address, Block as TargetBlock, Header, Runtime as TargetRuntime, RuntimeOrigin, System,
+    UncheckedExtrinsic,
 };
 
+// use kusama_runtime::{
+//     Address, Block as TargetBlock, Header, Runtime as TargetRuntime, RuntimeOrigin,
+//     System, UncheckedExtrinsic,
+// };
+
+use std::time::SystemTime;
 use std::{
     collections::HashMap,
     default::Default,
@@ -21,15 +27,17 @@ use jsonrpsee::{server::ServerBuilder, RpcModule};
 
 use codec::Decode;
 use frame_support::dispatch::GetDispatchInfo;
+use pallet_timestamp::Now;
 use sc_client_api::StorageNotifications;
 use sp_core::{blake2_256, Blake2Hasher, Encode, H256};
 use sp_runtime::traits::{Block as BlockT, Dispatchable, Header as HeaderT};
+use sp_runtime::SaturatedConversion;
 use sp_state_machine::{Backend, InMemoryBackend};
 
 use crate::account::get_account_id;
 use crate::externalities::new_test_ext;
 use crate::rpc::{MockApiServer, MockRpcServer};
-use crate::rpc_types::{BlockHash, StorageKey, TransactionStatus};
+use crate::rpc_types::{BlockHash, BlockNumber, StorageKey, TransactionStatus};
 
 pub type Runtime = TargetRuntime;
 pub type Block = TargetBlock;
@@ -49,7 +57,6 @@ pub struct BlockChainData {
     pub num_to_hash: HashMap<BlockNumber, BlockHash>,
     pub pool: Vec<String>,
     pub extrinsics_status: HashMap<H256, TransactionStatus<H256, BlockHash>>,
-    pub externalities: sp_io::TestExternalities,
     pub subs_storage_key: Vec<StorageKey>,
     pub notifications: StorageNotifications<Block>,
 }
@@ -115,6 +122,14 @@ fn check_pending_extrinsics(extrinsics: Vec<String>) -> ExtrinsicHashAndStatus {
     pending_extrinsics
 }
 
+fn current_time() -> u64 {
+    SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis()
+        .saturated_into()
+}
+
 fn build_block(header: Header, extrinsics: Vec<Extrinsic>) -> TargetBlock {
     TargetBlock::new(header, extrinsics)
 }
@@ -137,7 +152,7 @@ async fn main() -> anyhow::Result<()> {
         vec![],
     );
 
-    let externalities = new_test_ext();
+    let mut externalities = new_test_ext();
 
     let storage = StorageAt {
         block: block.clone(),
@@ -151,7 +166,6 @@ async fn main() -> anyhow::Result<()> {
             num_to_hash: HashMap::from([(block_number, block.hash())]),
             pool: vec![],
             extrinsics_status: HashMap::new(),
-            externalities,
             subs_storage_key: vec![],
             notifications: StorageNotifications::new(None),
         },
@@ -172,42 +186,52 @@ async fn main() -> anyhow::Result<()> {
             .map(|h| (h.0, TransactionStatus::Invalid))
             .collect();
 
-        let _ = db.externalities.execute_with(|| -> anyhow::Result<()> {
+        let _ = externalities.execute_with(|| -> anyhow::Result<()> {
             // Manually resetting Events.
             System::reset_events();
 
             System::initialize(&block_number, &block.hash(), header.digest());
             System::note_finished_initialize();
 
+            // Forcing pallet_timestamp set()
+            Now::<Runtime>::put(current_time());
+
             if !extrinsics.is_empty() {
                 println!("Extrinsics : {:?}", extrinsics.clone());
                 for (idx, (xt_hash, uxt)) in extrinsics.clone().into_iter().enumerate() {
-                    let xt_status = TransactionStatus::InBlock((Default::default(), idx));
-                    extrinsics_status.push((xt_hash, xt_status));
                     let encoded = uxt.encode();
                     System::note_extrinsic(encoded);
                     let dispatch_info = uxt.get_dispatch_info();
 
                     let signer = match uxt.signature {
                         Some((address, _, _)) => match address {
-                            Address::Id(a) => a,
-                            Address::Address32(a) => a.into(),
-                            _ => get_account_id("//Alice"),
+                            Address::Id(a) => Some(a),
+                            Address::Address32(a) => Some(a.into()),
+                            _ => Some(get_account_id("//Alice")),
                         },
-                        _ => get_account_id("//Alice"),
+                        _ => None,
                     };
 
-                    let r = uxt.function.dispatch(RuntimeOrigin::signed(signer.clone()));
+                    let r = match &signer {
+                        Some(s) => {
+                            System::inc_account_nonce(s.clone());
+                            uxt.function.dispatch(RuntimeOrigin::signed(s.clone()))
+                        }
+                        None => uxt.function.dispatch(RuntimeOrigin::none()),
+                    };
 
                     System::note_applied_extrinsic(&r, dispatch_info);
-                    System::inc_account_nonce(signer.clone());
 
+                    extrinsics_status.push((
+                        xt_hash,
+                        TransactionStatus::InBlock((Default::default(), idx)),
+                    ));
                     println!("Extrinsic->: (signer={:?} res={:?})", signer, r);
                     println!("Events     : {:?}", System::events());
                 }
-                System::note_finished_extrinsics();
-            };
+            }
 
+            System::note_finished_extrinsics();
             header = System::finalize();
 
             Ok(())
@@ -218,7 +242,7 @@ async fn main() -> anyhow::Result<()> {
         block = build_block(header, extrinsics.into_iter().map(|x| x.1).collect());
         let storage = StorageAt {
             block: block.clone(),
-            backend: db.externalities.as_backend(),
+            backend: externalities.as_backend(),
         };
         db.blocks.insert(block.hash(), storage);
         db.num_to_hash.insert(block_number, block.hash());
@@ -240,7 +264,7 @@ async fn main() -> anyhow::Result<()> {
         let c_changeset = vec![(vec![4], c_changeset_1)];
         for storage_key in &db.subs_storage_key {
             let k = &hex::decode(&storage_key[2..]).unwrap_or_default()[..];
-            let value: Option<Vec<u8>> = match db.externalities.as_backend().storage(k) {
+            let value: Option<Vec<u8>> = match externalities.as_backend().storage(k) {
                 Ok(Some(v)) => Some(v),
                 _ => None,
             };

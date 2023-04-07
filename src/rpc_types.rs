@@ -3,12 +3,14 @@ use serde::{Deserialize, Serialize};
 use sp_core::{Encode, H256};
 use sp_runtime::Justifications;
 
-use crate::{BlockNumber, Runtime, TargetBlock};
+use crate::{Runtime, TargetBlock};
 
 pub type Properties = serde_json::map::Map<String, serde_json::Value>;
 
 pub type Header = <Runtime as frame_system::Config>::Header;
 pub type Index = <Runtime as frame_system::Config>::Index;
+pub type AccountData = <Runtime as frame_system::Config>::AccountData;
+pub type BlockNumber = <Runtime as frame_system::Config>::BlockNumber;
 
 pub type Number = u64;
 pub type Hash = H256;

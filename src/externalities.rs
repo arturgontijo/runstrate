@@ -1,25 +1,36 @@
-use crate::get_account_id;
-use sp_runtime::BuildStorage;
+use crate::{get_account_id, Runtime};
+use sp_core::{crypto::AccountId32, storage::Storage};
 
-use crate::mock::{BalancesConfig, GenesisConfig, SudoConfig, SystemConfig};
+use crate::mock::{BalancesConfig, SudoConfig};
+use frame_support::traits::GenesisBuild;
+
+// use kusama_runtime::{BalancesConfig};
+
+fn set_balances(storage: &mut Storage, endowed_accounts: Option<Vec<AccountId32>>) {
+    let accounts =
+        endowed_accounts.unwrap_or(vec![get_account_id("//Alice"), get_account_id("//Bob")]);
+    let config = BalancesConfig {
+        balances: accounts.iter().cloned().map(|k| (k, 1 << 60)).collect(),
+    };
+    config.assimilate_storage(storage).unwrap();
+}
+
+// Comment out this if not using the pallet_sudo
+fn set_sudo(storage: &mut Storage, account: AccountId32) {
+    let config = SudoConfig { key: Some(account) };
+    config.assimilate_storage(storage).unwrap();
+}
 
 /// Build genesis storage according to the mock runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {
-    let endowed_accounts = vec![get_account_id("//Alice"), get_account_id("//Bob")];
-    let t = GenesisConfig {
-        system: SystemConfig { code: vec![] },
-        balances: BalancesConfig {
-            balances: endowed_accounts
-                .iter()
-                .cloned()
-                .map(|k| (k, 1 << 60))
-                .collect(),
-        },
-        sudo: SudoConfig {
-            key: Some(get_account_id("//Alice")),
-        },
-    }
-    .build_storage()
-    .unwrap();
-    t.into()
+    let mut storage = frame_system::GenesisConfig::default()
+        .build_storage::<Runtime>()
+        .unwrap();
+
+    set_balances(&mut storage, None);
+
+    // Comment out this if using Kusama runtime
+    set_sudo(&mut storage, get_account_id("//Alice"));
+
+    storage.into()
 }

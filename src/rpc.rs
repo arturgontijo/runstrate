@@ -4,6 +4,7 @@ use jsonrpsee::{
     types::SubscriptionResult,
 };
 
+use frame_support::Hashable;
 use futures::{future, stream, FutureExt, StreamExt};
 use rand::Rng;
 use std::{
@@ -14,15 +15,15 @@ use std::{
 use sc_client_api::StorageNotifications;
 use sp_state_machine::{Backend, InMemoryBackend};
 
-use sp_core::{blake2_256, Blake2Hasher, H256};
+use sp_core::{blake2_256, Blake2Hasher, Decode, H256};
 use sp_runtime::traits::Block as BlockT;
 
 use crate::{
     account::AccountId,
     rpc_types::{
-        BlockHash, Bytes, ChainType, Hash, Header, Index, Number, NumberOrHex, Properties,
-        RpcMethods, RuntimeVersion, SignedBlock, StorageChangeSet, StorageData, StorageKey,
-        TransactionStatus,
+        AccountData, BlockHash, Bytes, ChainType, Hash, Header, Index, Number, NumberOrHex,
+        Properties, RpcMethods, RuntimeVersion, SignedBlock, StorageChangeSet, StorageData,
+        StorageKey, TransactionStatus,
     },
     Block, Database, Runtime,
 };
@@ -117,24 +118,13 @@ impl MockRpcServer {
     fn storage(&self, key: StorageKey, hash: Option<Hash>) -> RpcResult<Option<StorageData>> {
         let db = self.db.lock().unwrap();
         let k = &hex::decode(&key[2..]).unwrap_or_default()[..];
-        match hash {
-            Some(h) => {
-                let value = match db.blocks.get(&h) {
-                    Some(s) => match s.backend.storage(k) {
-                        Ok(Some(v)) => Some(format!("0x{}", hex::encode(v))),
-                        _ => return Ok(None),
-                    },
-                    None => return Ok(None),
-                };
-                Ok(value)
-            }
-            None => {
-                let value = match db.externalities.as_backend().storage(k) {
-                    Ok(Some(v)) => Some(format!("0x{}", hex::encode(v))),
-                    _ => None,
-                };
-                Ok(value)
-            }
+        let h = hash.unwrap_or(db.head.hash());
+        match db.blocks.get(&h) {
+            Some(s) => match s.backend.storage(k) {
+                Ok(Some(v)) => Ok(Some(format!("0x{}", hex::encode(v)))),
+                _ => Ok(None),
+            },
+            None => Ok(None),
         }
     }
 
@@ -145,39 +135,20 @@ impl MockRpcServer {
     ) -> RpcResult<Vec<StorageChangeSet<Hash>>> {
         let db = self.db.lock().unwrap();
         let mut ret = vec![];
-        match at {
-            None => {
-                for key in keys.into_iter() {
-                    let k = &hex::decode(&key[2..]).unwrap_or_default()[..];
-                    let value = match db.externalities.as_backend().storage(k) {
-                        Ok(Some(v)) => Some(format!("0x{}", hex::encode(v))),
-                        _ => None,
-                    };
-                    ret.push(StorageChangeSet {
-                        block: db.head.hash(),
-                        changes: vec![(key, value)],
-                    });
-                }
-            }
-            Some(at) => {
-                match db.blocks.get(&at) {
-                    Some(s) => {
-                        for key in keys.into_iter() {
-                            let k = &hex::decode(&key[2..]).unwrap_or_default()[..];
-                            let value = match s.backend.storage(k) {
-                                Ok(Some(v)) => Some(format!("0x{}", hex::encode(v))),
-                                _ => None,
-                            };
-                            ret.push(StorageChangeSet {
-                                block: at,
-                                changes: vec![(key, value)],
-                            });
-                        }
-                    }
-                    None => return Ok(ret),
+        let at = at.unwrap_or(db.head.hash());
+        if let Some(s) = db.blocks.get(&at) {
+            for key in keys.into_iter() {
+                let k = &hex::decode(&key[2..]).unwrap_or_default()[..];
+                let value = match s.backend.storage(k) {
+                    Ok(Some(v)) => Some(format!("0x{}", hex::encode(v))),
+                    _ => None,
                 };
+                ret.push(StorageChangeSet {
+                    block: at,
+                    changes: vec![(key, value)],
+                });
             }
-        };
+        }
         Ok(ret)
     }
 
@@ -219,13 +190,22 @@ impl MockRpcServer {
 
     /// System
     async fn nonce(&self, account: AccountId) -> RpcResult<Index> {
-        let mut nonce = 0;
-        let mut db = self.db.lock().unwrap();
-        let _ = db.externalities.execute_with(|| -> anyhow::Result<()> {
-            nonce = crate::System::account_nonce(account);
-            Ok(())
-        });
-        Ok(nonce)
+        let value = match get_prefixed_storage(
+            &self.db,
+            "System",
+            "Account",
+            account.blake2_128_concat(),
+        ) {
+            Some(v) => v,
+            None => return Ok(0),
+        };
+        let account_data =
+            match frame_system::AccountInfo::<Index, AccountData>::decode(&mut &value[..]) {
+                Ok(a) => a,
+                _ => return Ok(0),
+            };
+        println!("account_data: {:?}", account_data);
+        Ok(account_data.nonce)
     }
 }
 
@@ -429,7 +409,10 @@ impl MockApiServer<AccountId, Number, Hash, Header, BlockHash, SignedBlock> for 
     ) -> SubscriptionResult {
         println!("----> subscribe_storage(keys={:?})", keys);
         let mut db = self.db.lock().unwrap();
-        let backend = db.externalities.as_backend();
+        let backend = match db.blocks.get(&db.head.hash()) {
+            Some(b) => b.backend.clone(),
+            None => return Ok(()),
+        };
         subscribe_storage(backend, &db.notifications, sink, keys.clone());
         if let Some(keys) = keys {
             for k in keys {
@@ -505,6 +488,27 @@ impl MockApiServer<AccountId, Number, Hash, Header, BlockHash, SignedBlock> for 
     async fn nonce(&self, account: AccountId) -> RpcResult<Index> {
         println!("----> nonce(account={:?})", account);
         self.nonce(account).await
+    }
+}
+
+fn get_prefixed_storage(
+    db: &Arc<Mutex<Database>>,
+    module: &str,
+    method: &str,
+    extra: Vec<u8>,
+) -> Option<Vec<u8>> {
+    let db = db.lock().unwrap();
+    let backend = match db.blocks.get(&db.head.hash()) {
+        Some(s) => s.backend.clone(),
+        None => return None,
+    };
+    let mut key = Vec::new();
+    key.extend(sp_core::twox_128(module.as_bytes()));
+    key.extend(sp_core::twox_128(method.as_bytes()));
+    key.extend(extra);
+    match backend.storage(&key[..]) {
+        Ok(Some(v)) => Some(v),
+        _ => None,
     }
 }
 

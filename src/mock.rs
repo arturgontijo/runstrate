@@ -1,6 +1,6 @@
 use frame_support::{
     parameter_types,
-    traits::{ConstU16, ConstU32},
+    traits::{ConstU16, ConstU32, ConstU64},
 };
 use frame_system as system;
 use sp_core::H256;
@@ -9,7 +9,7 @@ use sp_runtime::{
     traits::{BlakeTwo256, IdentityLookup},
 };
 
-use crate::account::{AccountId, Balance, Signature};
+use crate::account::{AccountId, Signature};
 
 /// An index to a block.
 pub type BlockNumber = u32;
@@ -19,6 +19,8 @@ pub type Address = sp_runtime::MultiAddress<AccountId, ()>;
 pub type Header = generic::Header<BlockNumber, BlakeTwo256>;
 /// Block type as expected by this runtime.
 pub type Block = generic::Block<Header, UncheckedExtrinsic>;
+
+pub type Balance = u64;
 
 /// The SignedExtension to the basic transaction logic.
 pub type SignedExtra = (
@@ -42,6 +44,7 @@ frame_support::construct_runtime!(
         UncheckedExtrinsic = UncheckedExtrinsic,
     {
         System: frame_system,
+        Timestamp: pallet_timestamp,
         Balances: pallet_balances,
         Sudo: pallet_sudo,
         TemplateModule: pallet_template,
@@ -73,6 +76,13 @@ impl system::Config for Runtime {
     type SS58Prefix = ConstU16<42>;
     type OnSetCode = ();
     type MaxConsumers = ConstU32<16>;
+}
+
+impl pallet_timestamp::Config for Runtime {
+    type Moment = u64;
+    type OnTimestampSet = ();
+    type MinimumPeriod = ConstU64<{ 6000 / 2 }>;
+    type WeightInfo = ();
 }
 
 parameter_types! {
