@@ -26,15 +26,19 @@ use std::{
 use jsonrpsee::{server::ServerBuilder, RpcModule};
 
 use codec::Decode;
-use frame_support::dispatch::GetDispatchInfo;
+use frame_support::dispatch::{DispatchResultWithPostInfo, GetDispatchInfo};
 use pallet_timestamp::Now;
 use sc_client_api::StorageNotifications;
 use sp_core::{blake2_256, Blake2Hasher, Encode, H256};
-use sp_runtime::traits::{Block as BlockT, Dispatchable, Header as HeaderT};
-use sp_runtime::SaturatedConversion;
+use sp_runtime::{
+    traits::{Block as BlockT, Dispatchable, Header as HeaderT, SignedExtension},
+    DispatchError, SaturatedConversion,
+};
 use sp_state_machine::{Backend, InMemoryBackend};
 
-use crate::account::get_account_id;
+use pallet_transaction_payment::ChargeTransactionPayment;
+
+use crate::account::{get_account_id, AccountId};
 use crate::externalities::new_test_ext;
 use crate::rpc::{MockApiServer, MockRpcServer};
 use crate::rpc_types::{BlockHash, BlockNumber, StorageKey, TransactionStatus};
@@ -122,6 +126,26 @@ fn check_pending_extrinsics(extrinsics: Vec<String>) -> ExtrinsicHashAndStatus {
     pending_extrinsics
 }
 
+fn charge_fees_and_dispatch(account: &AccountId, uxt: Extrinsic) -> DispatchResultWithPostInfo {
+    let encoded_len = uxt.encode().len();
+    let dispatch_info = uxt.get_dispatch_info();
+    let pre = ChargeTransactionPayment::<Runtime>::from(0)
+        .pre_dispatch(account, &uxt.function, &dispatch_info, encoded_len)
+        .map_err(|e| DispatchError::Other(e.into()))?;
+    let d = uxt
+        .function
+        .dispatch(RuntimeOrigin::signed(account.clone()))?;
+    ChargeTransactionPayment::<Runtime>::post_dispatch(
+        Some(pre),
+        &dispatch_info,
+        &d,
+        encoded_len,
+        &Ok(()),
+    )
+    .map_err(|e| DispatchError::Other(e.into()))?;
+    Ok(d)
+}
+
 fn current_time() -> u64 {
     SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)
@@ -203,7 +227,7 @@ async fn main() -> anyhow::Result<()> {
                     System::note_extrinsic(encoded);
                     let dispatch_info = uxt.get_dispatch_info();
 
-                    let signer = match uxt.signature {
+                    let signer = match uxt.clone().signature {
                         Some((address, _, _)) => match address {
                             Address::Id(a) => Some(a),
                             Address::Address32(a) => Some(a.into()),
@@ -215,7 +239,7 @@ async fn main() -> anyhow::Result<()> {
                     let r = match &signer {
                         Some(s) => {
                             System::inc_account_nonce(s.clone());
-                            uxt.function.dispatch(RuntimeOrigin::signed(s.clone()))
+                            charge_fees_and_dispatch(s, uxt.clone())
                         }
                         None => uxt.function.dispatch(RuntimeOrigin::none()),
                     };
@@ -226,6 +250,7 @@ async fn main() -> anyhow::Result<()> {
                         xt_hash,
                         TransactionStatus::InBlock((Default::default(), idx)),
                     ));
+
                     println!("Extrinsic->: (signer={:?} res={:?})", signer, r);
                     println!("Events     : {:?}", System::events());
                 }

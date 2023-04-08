@@ -1,13 +1,16 @@
 use frame_support::{
     parameter_types,
-    traits::{ConstU16, ConstU32, ConstU64},
+    traits::{ConstU16, ConstU32, ConstU64, ConstU8},
+    weights::IdentityFee,
 };
 use frame_system as system;
 use sp_core::H256;
 use sp_runtime::{
     generic,
-    traits::{BlakeTwo256, IdentityLookup},
+    traits::{BlakeTwo256, IdentityLookup, One},
 };
+
+use pallet_transaction_payment::{ConstFeeMultiplier, CurrencyAdapter, Multiplier};
 
 use crate::account::{AccountId, Signature};
 
@@ -31,6 +34,7 @@ pub type SignedExtra = (
     frame_system::CheckEra<Runtime>,
     frame_system::CheckNonce<Runtime>,
     frame_system::CheckWeight<Runtime>,
+    pallet_transaction_payment::ChargeTransactionPayment<Runtime>,
 );
 /// Unchecked extrinsic type as expected by this runtime.
 pub type UncheckedExtrinsic =
@@ -46,6 +50,7 @@ frame_support::construct_runtime!(
         System: frame_system,
         Timestamp: pallet_timestamp,
         Balances: pallet_balances,
+        TransactionPayment: pallet_transaction_payment,
         Sudo: pallet_sudo,
         TemplateModule: pallet_template,
     }
@@ -99,6 +104,19 @@ impl pallet_balances::Config for Runtime {
     type MaxLocks = ();
     type MaxReserves = ();
     type ReserveIdentifier = [u8; 8];
+}
+
+parameter_types! {
+    pub FeeMultiplier: Multiplier = Multiplier::one();
+}
+
+impl pallet_transaction_payment::Config for Runtime {
+    type RuntimeEvent = RuntimeEvent;
+    type OnChargeTransaction = CurrencyAdapter<Balances, ()>;
+    type OperationalFeeMultiplier = ConstU8<5>;
+    type WeightToFee = IdentityFee<Balance>;
+    type LengthToFee = IdentityFee<Balance>;
+    type FeeMultiplierUpdate = ConstFeeMultiplier<FeeMultiplier>;
 }
 
 impl pallet_sudo::Config for Runtime {

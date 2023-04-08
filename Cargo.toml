@@ -42,6 +42,7 @@ frame-system = { default-features = false, git = "https://github.com/paritytech/
 # Pallets
 pallet-timestamp = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.41" }
 pallet-balances = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.41" }
+pallet-transaction-payment = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.41" }
 pallet-sudo = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.41" }
 pallet-template = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.41" }
 
@@ -56,6 +57,7 @@ std = [
     "frame-system/std",
     "pallet-timestamp/std",
     "pallet-balances/std",
+    "pallet-transaction-payment/std",
     "pallet-sudo/std",
     "pallet-template/std",
 #    "kusama-runtime/std",

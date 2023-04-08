@@ -10,7 +10,11 @@ fn set_balances(storage: &mut Storage, endowed_accounts: Option<Vec<AccountId32>
     let accounts =
         endowed_accounts.unwrap_or(vec![get_account_id("//Alice"), get_account_id("//Bob")]);
     let config = BalancesConfig {
-        balances: accounts.iter().cloned().map(|k| (k, 1 << 60)).collect(),
+        balances: accounts
+            .iter()
+            .cloned()
+            .map(|k| (k, 1_000_000_000_000_000))
+            .collect(),
     };
     config.assimilate_storage(storage).unwrap();
 }
