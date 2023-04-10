@@ -7,6 +7,7 @@ use jsonrpsee::{
 use frame_support::Hashable;
 use futures::{future, stream, FutureExt, StreamExt};
 use rand::Rng;
+use std::sync::MutexGuard;
 use std::{
     sync::{Arc, Mutex},
     thread, time,
@@ -68,42 +69,12 @@ impl MockRpcServer {
 
     async fn block(&self, hash: Option<NumberOrHex>) -> RpcResult<Option<SignedBlock>> {
         let db = self.db.lock().unwrap();
-        let h = match hash {
-            Some(hash) => match hash {
-                NumberOrHex::Number(n) => match db.num_to_hash.get(&n) {
-                    Some(h) => *h,
-                    None => return Ok(None),
-                },
-                NumberOrHex::Hex(h) => h,
-            },
-            None => db.head.hash(),
-        };
-
-        let block = match db.blocks.get(&h) {
-            Some(s) => s.block.clone(),
-            None => return Ok(None),
-        };
-
-        Ok(Some(SignedBlock::new(block, None)))
+        Ok(get_block_by_number_or_hex(db, hash).map(|block| SignedBlock::new(block, None)))
     }
 
     async fn block_hash(&self, hash: Option<NumberOrHex>) -> RpcResult<Option<Hash>> {
         let db = self.db.lock().unwrap();
-        let h = match hash {
-            Some(hash) => match hash {
-                NumberOrHex::Number(n) => match db.num_to_hash.get(&n) {
-                    Some(h) => *h,
-                    None => return Ok(None),
-                },
-                NumberOrHex::Hex(h) => h,
-            },
-            None => db.head.hash(),
-        };
-        let block = match db.blocks.get(&h) {
-            Some(s) => s.block.clone(),
-            None => return Ok(None),
-        };
-        Ok(Some(block.hash()))
+        Ok(get_block_by_number_or_hex(db, hash).map(|block| block.hash()))
     }
 
     async fn metadata(&self, _hash: Option<Hash>) -> RpcResult<String> {
@@ -204,7 +175,6 @@ impl MockRpcServer {
                 Ok(a) => a,
                 _ => return Ok(0),
             };
-        println!("account_data: {:?}", account_data);
         Ok(account_data.nonce)
     }
 }
@@ -491,6 +461,23 @@ impl MockApiServer<AccountId, Number, Hash, Header, BlockHash, SignedBlock> for 
     }
 }
 
+fn get_block_by_number_or_hex(
+    db: MutexGuard<Database>,
+    hash: Option<NumberOrHex>,
+) -> Option<Block> {
+    let h = match hash {
+        Some(hash) => match hash {
+            NumberOrHex::Number(n) => match db.num_to_hash.get(&n) {
+                Some(h) => *h,
+                None => return None,
+            },
+            NumberOrHex::Hex(h) => h,
+        },
+        None => db.head.hash(),
+    };
+    db.blocks.get(&h).map(|s| s.block.clone())
+}
+
 fn get_prefixed_storage(
     db: &Arc<Mutex<Database>>,
     module: &str,
@@ -519,7 +506,6 @@ fn subscribe_storage(
     keys: Option<Vec<StorageKey>>,
 ) {
     let _ = sink.accept();
-    println!("subscribe_storage(id={:?})", sink.subscription_id());
 
     let stream = notifications.listen(None, None);
 
