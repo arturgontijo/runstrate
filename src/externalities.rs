@@ -1,9 +1,9 @@
 use crate::{get_account_id, Runtime};
 use sp_core::{crypto::AccountId32, storage::Storage};
 
-use crate::mock::{BalancesConfig, SudoConfig};
 use frame_support::traits::GenesisBuild;
 
+use node_template_runtime::{BalancesConfig, SudoConfig};
 // use kusama_runtime::{BalancesConfig};
 
 fn set_balances(storage: &mut Storage, endowed_accounts: Option<Vec<AccountId32>>) {

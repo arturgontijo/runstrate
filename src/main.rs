@@ -1,11 +1,10 @@
 mod account;
 mod externalities;
-mod mock;
 mod rpc;
 mod rpc_types;
 
-/// Add runtime here -------------------------------------------
-use mock::{
+/// Add your runtime here -------------------------------------------
+use node_template_runtime::{
     Address, Block as TargetBlock, Header, Runtime as TargetRuntime, RuntimeOrigin, System,
     UncheckedExtrinsic,
 };
