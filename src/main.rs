@@ -47,7 +47,8 @@ pub type Block = TargetBlock;
 pub type Extrinsic = UncheckedExtrinsic;
 pub type Context = frame_system::ChainContext<TargetRuntime>;
 
-pub const MILLISECS_PER_BLOCK: u64 = 6000;
+// Set this to 0 to get "instant sealing"
+pub const MILLISECS_PER_BLOCK: u64 = 0;
 
 pub const ENDPOINT: &str = "127.0.0.1:9944";
 pub const MEGABYTE: u32 = 1025 * 1024;
@@ -146,6 +147,10 @@ fn charge_fees_and_dispatch(account: &AccountId, uxt: Extrinsic) -> DispatchResu
 }
 
 fn current_time() -> u64 {
+    // TODO: Make it a cli
+    if MILLISECS_PER_BLOCK == 0 {
+        return 0;
+    }
     SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)
         .unwrap_or_default()
@@ -203,7 +208,19 @@ async fn main() -> anyhow::Result<()> {
         let mut header = block.clone().header;
 
         let mut db = mutex_db.lock().unwrap();
-        let (extrinsics, invalid) = check_pending_extrinsics(db.pool.clone());
+
+        let (mut extrinsics, mut invalid) = check_pending_extrinsics(db.pool.clone());
+
+        // TODO: Make it a cli arg + channel.
+        if MILLISECS_PER_BLOCK == 0 {
+            while extrinsics.is_empty() {
+                drop(db);
+                thread::sleep(time::Duration::from_millis(100));
+                db = mutex_db.lock().unwrap();
+                (extrinsics, invalid) = check_pending_extrinsics(db.pool.clone());
+            }
+        };
+
         let mut extrinsics_status: Vec<_> = invalid
             .iter()
             .map(|h| (h.0, TransactionStatus::Invalid))

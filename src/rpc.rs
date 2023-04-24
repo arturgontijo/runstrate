@@ -6,7 +6,6 @@ use jsonrpsee::{
 
 use frame_support::Hashable;
 use futures::{future, stream, FutureExt, StreamExt};
-use rand::Rng;
 use std::sync::MutexGuard;
 use std::{
     sync::{Arc, Mutex},
@@ -18,40 +17,27 @@ use sp_state_machine::{Backend, InMemoryBackend};
 
 use sp_core::{blake2_256, Blake2Hasher, Decode, H256};
 use sp_runtime::traits::Block as BlockT;
+use sp_version::RuntimeVersion;
+
+use sp_api::runtime_decl_for_core::CoreV4;
 
 use crate::{
     account::AccountId,
     rpc_types::{
         AccountData, BlockHash, Bytes, ChainType, Hash, Header, Index, Number, NumberOrHex,
-        Properties, RpcMethods, RuntimeVersion, SignedBlock, StorageChangeSet, StorageData,
-        StorageKey, TransactionStatus,
+        Properties, RpcMethods, SignedBlock, StorageChangeSet, StorageData, StorageKey,
+        TransactionStatus,
     },
     Block, Database, Runtime,
 };
 
 pub struct MockRpcServer {
     pub db: Arc<Mutex<Database>>,
-    pub runtime_version: RuntimeVersion,
 }
 
 impl MockRpcServer {
     pub fn new(db: Arc<Mutex<Database>>) -> Self {
-        // Generating a random version (on every build)
-        // to force UIs to refresh on their end too.
-        let r = rand::thread_rng().gen_range(0..1000);
-        Self {
-            db,
-            runtime_version: RuntimeVersion {
-                spec_name: "runstrate-node".to_string(),
-                impl_name: "runstrate-node".to_string(),
-                authoring_version: r,
-                spec_version: r,
-                impl_version: r,
-                apis: vec![],
-                transaction_version: r,
-                state_version: 1,
-            },
-        }
+        Self { db }
     }
 
     async fn header(&self, hash: Option<Hash>) -> RpcResult<Option<Header>> {
@@ -77,13 +63,13 @@ impl MockRpcServer {
         Ok(get_block_by_number_or_hex(db, hash).map(|block| block.hash()))
     }
 
-    async fn metadata(&self, _hash: Option<Hash>) -> RpcResult<String> {
+    async fn metadata(&self, _hash: Option<Hash>) -> RpcResult<Bytes> {
         let m: Vec<u8> = Runtime::metadata().into();
         Ok(format!("0x{}", hex::encode(m)))
     }
 
     async fn runtime_version(&self, _hash: Option<NumberOrHex>) -> RpcResult<RuntimeVersion> {
-        Ok(self.runtime_version.clone())
+        Ok(Runtime::version())
     }
 
     fn storage(&self, key: StorageKey, hash: Option<Hash>) -> RpcResult<Option<StorageData>> {
@@ -197,7 +183,7 @@ pub trait MockApi<AccountId, Number, Hash, Header, BlockHash, SignedBlock> {
 
     /// Returns the runtime metadata as an opaque blob.
     #[method(name = "state_getMetadata")]
-    async fn metadata(&self, hash: Option<Hash>) -> RpcResult<String>;
+    async fn metadata(&self, hash: Option<Hash>) -> RpcResult<Bytes>;
 
     /// Get the runtime version.
     #[method(name = "state_getRuntimeVersion", aliases = ["chain_getRuntimeVersion"])]
@@ -293,6 +279,9 @@ pub trait MockApi<AccountId, Number, Hash, Header, BlockHash, SignedBlock> {
     )]
     fn subscribe_storage(&self, keys: Option<Vec<StorageKey>>);
 
+    #[method(name = "state_call", aliases = ["state_callAt"], blocking)]
+    fn call(&self, name: String, bytes: Bytes, hash: Option<Hash>) -> RpcResult<Bytes>;
+
     /// System
     #[method(name = "system_accountNextIndex", aliases = ["account_nextIndex"])]
     async fn nonce(&self, account: AccountId) -> RpcResult<Index>;
@@ -304,26 +293,32 @@ impl MockApiServer<AccountId, Number, Hash, Header, BlockHash, SignedBlock> for 
         println!("----> header(hash={:?})", hash.clone());
         self.header(hash).await
     }
+
     async fn block(&self, hash: Option<NumberOrHex>) -> RpcResult<Option<SignedBlock>> {
         println!("----> block(hash={:?})", hash.clone());
         self.block(hash).await
     }
+
     async fn block_hash(&self, hash: Option<NumberOrHex>) -> RpcResult<Option<Hash>> {
         println!("----> block_hash(hash={:?})", hash.clone());
         self.block_hash(hash).await
     }
-    async fn metadata(&self, hash: Option<Hash>) -> RpcResult<String> {
+
+    async fn metadata(&self, hash: Option<Hash>) -> RpcResult<Bytes> {
         println!("----> metadata(hash={:?})", hash);
         self.metadata(hash).await
     }
+
     async fn runtime_version(&self, hash: Option<NumberOrHex>) -> RpcResult<RuntimeVersion> {
         println!("----> runtime_version(hash={:?})", hash);
         self.runtime_version(hash).await
     }
+
     fn storage(&self, key: StorageKey, hash: Option<Hash>) -> RpcResult<Option<StorageData>> {
         println!("----> storage(key={:?}, hash={:?})", &key, hash);
         self.storage(key, hash)
     }
+
     fn query_storage_at(
         &self,
         keys: Vec<StorageKey>,
@@ -336,13 +331,26 @@ impl MockApiServer<AccountId, Number, Hash, Header, BlockHash, SignedBlock> for 
         );
         self.query_storage_at(keys, at)
     }
+
     async fn finalized_head(&self) -> RpcResult<Hash> {
         println!("----> finalized_head()");
         self.finalized_head().await
     }
+
     fn subscribe_runtime_version(&self, mut sink: SubscriptionSink) -> SubscriptionResult {
         println!("----> subscribe_runtime_version()");
         let _ = sink.accept();
+        thread::spawn(move || -> anyhow::Result<()> {
+            loop {
+                // TODO: Not good...channels?
+                sink.send(&Runtime::version())?;
+                if sink.is_closed() {
+                    break;
+                };
+                thread::sleep(time::Duration::from_millis(500));
+            }
+            Ok(())
+        });
         Ok(())
     }
 
@@ -393,30 +401,37 @@ impl MockApiServer<AccountId, Number, Hash, Header, BlockHash, SignedBlock> for 
         };
         Ok(())
     }
+
     async fn system_name(&self) -> RpcResult<String> {
         println!("----> system_name()");
         self.system_name().await
     }
+
     async fn system_version(&self) -> RpcResult<String> {
         println!("----> system_version()");
         self.system_version().await
     }
+
     async fn system_chain(&self) -> RpcResult<String> {
         println!("----> system_chain()");
         self.system_chain().await
     }
+
     async fn system_type(&self) -> RpcResult<ChainType> {
         println!("----> system_type()");
         self.system_type().await
     }
+
     async fn system_properties(&self) -> RpcResult<Properties> {
         println!("----> system_properties()");
         self.system_properties().await
     }
+
     async fn submit_extrinsic(&self, extrinsic: Bytes) -> RpcResult<Hash> {
         println!("----> submit_extrinsic()");
         self.submit_extrinsic(extrinsic).await
     }
+
     fn watch_extrinsic(&self, mut sink: SubscriptionSink, extrinsic: Bytes) -> SubscriptionResult {
         println!("----> watch_extrinsic(extrinsic={:?})", extrinsic);
         let _ = sink.accept();
@@ -450,10 +465,20 @@ impl MockApiServer<AccountId, Number, Hash, Header, BlockHash, SignedBlock> for 
         });
         Ok(())
     }
+
     async fn methods(&self) -> RpcResult<RpcMethods> {
         println!("----> methods()");
         self.methods().await
     }
+
+    fn call(&self, name: String, bytes: Bytes, hash: Option<Hash>) -> RpcResult<Bytes> {
+        println!(
+            "----> call(name={:?}, bytes={:?}, hash={:?})",
+            name, bytes, hash
+        );
+        Ok("".to_string())
+    }
+
     /// System
     async fn nonce(&self, account: AccountId) -> RpcResult<Index> {
         println!("----> nonce(account={:?})", account);
