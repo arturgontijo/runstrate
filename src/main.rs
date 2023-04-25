@@ -1,16 +1,19 @@
 mod account;
+mod cli;
 mod externalities;
 mod rpc;
 mod rpc_types;
 
 /// Add your runtime here -------------------------------------------
-use node_template_runtime::{
-    Address, Block as TargetBlock, Header, Runtime as TargetRuntime, RuntimeOrigin, System,
-    UncheckedExtrinsic,
-};
+use mock_runtime::{Address, Runtime as TargetRuntime, RuntimeOrigin, System, UncheckedExtrinsic};
 
 // use kusama_runtime::{
-//     Address, Block as TargetBlock, Header, Runtime as TargetRuntime, RuntimeOrigin,
+//     Address, Runtime as TargetRuntime, RuntimeOrigin,
+//     System, UncheckedExtrinsic,
+// };
+//
+// use statemine_runtime::{
+//     Address, Runtime as TargetRuntime, RuntimeOrigin,
 //     System, UncheckedExtrinsic,
 // };
 
@@ -22,6 +25,7 @@ use std::{
     thread, time,
 };
 
+use clap::Parser;
 use jsonrpsee::{server::ServerBuilder, RpcModule};
 
 use codec::Decode;
@@ -30,7 +34,8 @@ use pallet_timestamp::Now;
 use sc_client_api::StorageNotifications;
 use sp_core::{blake2_256, Blake2Hasher, Encode, H256};
 use sp_runtime::{
-    traits::{Block as BlockT, Dispatchable, Header as HeaderT, SignedExtension},
+    generic,
+    traits::{BlakeTwo256, Block as BlockT, Dispatchable, Header as HeaderT, SignedExtension},
     DispatchError, SaturatedConversion,
 };
 use sp_state_machine::{Backend, InMemoryBackend};
@@ -43,12 +48,10 @@ use crate::rpc::{MockApiServer, MockRpcServer};
 use crate::rpc_types::{BlockHash, BlockNumber, StorageKey, TransactionStatus};
 
 pub type Runtime = TargetRuntime;
-pub type Block = TargetBlock;
 pub type Extrinsic = UncheckedExtrinsic;
 pub type Context = frame_system::ChainContext<TargetRuntime>;
-
-// Set this to 0 to get "instant sealing"
-pub const MILLISECS_PER_BLOCK: u64 = 0;
+pub type Header = generic::Header<BlockNumber, BlakeTwo256>;
+pub type Block = generic::Block<Header, Extrinsic>;
 
 pub const ENDPOINT: &str = "127.0.0.1:9944";
 pub const MEGABYTE: u32 = 1025 * 1024;
@@ -56,7 +59,7 @@ pub const MEGABYTE: u32 = 1025 * 1024;
 pub type ExtrinsicHashAndStatus = (Vec<(H256, Extrinsic)>, Vec<(H256, ())>);
 
 pub struct BlockChainData {
-    pub head: TargetBlock,
+    pub head: Block,
     pub blocks: HashMap<BlockHash, StorageAt>,
     pub num_to_hash: HashMap<BlockNumber, BlockHash>,
     pub pool: Vec<String>,
@@ -66,7 +69,7 @@ pub struct BlockChainData {
 }
 
 pub struct StorageAt {
-    pub block: TargetBlock,
+    pub block: Block,
     pub backend: InMemoryBackend<Blake2Hasher>,
 }
 
@@ -146,9 +149,8 @@ fn charge_fees_and_dispatch(account: &AccountId, uxt: Extrinsic) -> DispatchResu
     Ok(d)
 }
 
-fn current_time() -> u64 {
-    // TODO: Make it a cli
-    if MILLISECS_PER_BLOCK == 0 {
+fn current_time(block_time: u64) -> u64 {
+    if block_time == 0 {
         return 0;
     }
     SystemTime::now()
@@ -158,12 +160,15 @@ fn current_time() -> u64 {
         .saturated_into()
 }
 
-fn build_block(header: Header, extrinsics: Vec<Extrinsic>) -> TargetBlock {
-    TargetBlock::new(header, extrinsics)
+fn build_block(header: Header, extrinsics: Vec<Extrinsic>) -> Block {
+    Block::new(header, extrinsics)
 }
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    // Set args.block_time to 0 to get "instant sealing"
+    let args = cli::Args::parse();
+
     println!("---- Runstrate ----");
 
     let mut block_number = 0;
@@ -212,7 +217,7 @@ async fn main() -> anyhow::Result<()> {
         let (mut extrinsics, mut invalid) = check_pending_extrinsics(db.pool.clone());
 
         // TODO: Make it a cli arg + channel.
-        if MILLISECS_PER_BLOCK == 0 {
+        if args.block_time == 0 {
             while extrinsics.is_empty() {
                 drop(db);
                 thread::sleep(time::Duration::from_millis(100));
@@ -234,7 +239,7 @@ async fn main() -> anyhow::Result<()> {
             System::note_finished_initialize();
 
             // Forcing pallet_timestamp set()
-            Now::<Runtime>::put(current_time());
+            Now::<Runtime>::put(current_time(args.block_time));
 
             if !extrinsics.is_empty() {
                 println!("Extrinsics : {:?}", extrinsics.clone());
@@ -324,6 +329,6 @@ async fn main() -> anyhow::Result<()> {
         println!("BlockNumber: {:04} ({:?})", block_number, block.hash());
 
         // Giving some time to RPCs be processed.
-        thread::sleep(time::Duration::from_millis(MILLISECS_PER_BLOCK));
+        thread::sleep(time::Duration::from_millis(args.block_time));
     }
 }

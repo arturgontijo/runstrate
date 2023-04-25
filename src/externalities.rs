@@ -3,8 +3,10 @@ use sp_core::{crypto::AccountId32, storage::Storage};
 
 use frame_support::traits::GenesisBuild;
 
-use node_template_runtime::{BalancesConfig, SudoConfig};
+use mock_runtime::{BalancesConfig, SudoConfig};
+
 // use kusama_runtime::{BalancesConfig};
+// use statemine_runtime::{BalancesConfig};
 
 fn set_balances(storage: &mut Storage, endowed_accounts: Option<Vec<AccountId32>>) {
     let accounts =

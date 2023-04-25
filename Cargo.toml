@@ -1,6 +1,6 @@
 [package]
 name = "runstrate"
-version = "0.0.1"
+version = "0.0.2"
 description = "Fast way to test a Substrate Runtime via RPC."
 authors = ["Artur Gontijo <https://github.com/arturgontijo>"]
 edition = "2021"
@@ -18,6 +18,7 @@ name = "runstrate"
 anyhow = "1"
 jsonrpsee = { version = "0.16.2", features = ["server", "client", "macros"] }
 hex = { version = "0.4.3", default-features = false }
+clap = { version = "4.2.2" }
 
 futures = { version = "0.3.21" }
 tokio = { version = "1.16", features = ["full"] }
@@ -50,10 +51,11 @@ pallet-timestamp = { default-features = false, git = "https://github.com/parityt
 pallet-transaction-payment = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.41" }
 
 # Runtime
-node-template-runtime = { path = "example/runtime" }
+mock-runtime = { path = "runtime" }
 #node-template-runtime = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.41" }
 
 #kusama-runtime = { default-features = false, git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.41" }
+#statemine-runtime = { default-features = false, git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.41" }
 
 [features]
 default = ["std"]
@@ -61,6 +63,7 @@ std = [
     "codec/std",
     "frame-support/std",
     "frame-system/std",
-    "node-template-runtime/std",
+    "mock-runtime/std",
 #    "kusama-runtime/std",
+#    "statemine-runtime/std",
 ]

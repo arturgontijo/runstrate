@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use sp_core::{Encode, H256};
 use sp_runtime::Justifications;
 
-use crate::{Runtime, TargetBlock};
+use crate::{Block, Runtime};
 
 pub type Properties = serde_json::map::Map<String, serde_json::Value>;
 
@@ -28,7 +28,7 @@ pub struct MockBlock {
 }
 
 impl MockBlock {
-    fn new(block: TargetBlock) -> Self {
+    fn new(block: Block) -> Self {
         Self {
             header: block.header,
             extrinsics: block
@@ -49,7 +49,7 @@ pub struct MockSignedBlock {
 }
 
 impl MockSignedBlock {
-    pub fn new(block: TargetBlock, justifications: Option<Justifications>) -> Self {
+    pub fn new(block: Block, justifications: Option<Justifications>) -> Self {
         Self {
             block: MockBlock::new(block),
             justifications,
