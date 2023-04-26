@@ -40,20 +40,21 @@ sc-service = { default-features = false, git = "https://github.com/paritytech/su
 sc-transaction-pool-api = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.41" }
 sp-transaction-pool = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.41" }
 
+sc-executor = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.41" }
+
 frame-support = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.41" }
 frame-system = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.41" }
 frame-executive = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.41" }
 
-pallet-transaction-payment-rpc-runtime-api = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.41" }
-
 # Pallets
 pallet-timestamp = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.41" }
 pallet-transaction-payment = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.41" }
+pallet-transaction-payment-rpc-runtime-api = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.41" }
 
 # Runtime
 mock-runtime = { path = "runtime" }
-#node-template-runtime = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.41" }
 
+#node-template-runtime = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.41" }
 #kusama-runtime = { default-features = false, git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.41" }
 #statemine-runtime = { default-features = false, git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.41" }
 
@@ -64,6 +65,7 @@ std = [
     "frame-support/std",
     "frame-system/std",
     "mock-runtime/std",
+#    "node-template-runtime/std",
 #    "kusama-runtime/std",
 #    "statemine-runtime/std",
 ]

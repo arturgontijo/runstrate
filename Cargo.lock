@@ -1986,6 +1986,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "frame-system-rpc-runtime-api"
+version = "4.0.0-dev"
+source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.41#3bd809d59c31c7205a0f36c6ddcba603e43051fc"
+dependencies = [
+ "parity-scale-codec",
+ "sp-api",
+]
+
+[[package]]
 name = "fs-err"
 version = "2.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3780,19 +3789,26 @@ dependencies = [
 name = "mock-runtime"
 version = "0.0.2"
 dependencies = [
+ "frame-executive",
  "frame-support",
  "frame-system",
+ "frame-system-rpc-runtime-api",
  "pallet-balances",
  "pallet-sudo",
  "pallet-template",
  "pallet-timestamp",
  "pallet-transaction-payment",
+ "pallet-transaction-payment-rpc-runtime-api",
  "parity-scale-codec",
  "scale-info",
  "sp-api",
+ "sp-block-builder",
  "sp-core",
+ "sp-inherents",
  "sp-io",
  "sp-runtime",
+ "sp-std",
+ "sp-transaction-pool",
  "sp-version",
 ]
 
@@ -5195,6 +5211,7 @@ dependencies = [
  "pallet-transaction-payment-rpc-runtime-api",
  "parity-scale-codec",
  "sc-client-api",
+ "sc-executor",
  "sc-service",
  "sc-transaction-pool-api",
  "scale-info",

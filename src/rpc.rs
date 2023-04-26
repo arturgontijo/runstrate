@@ -17,12 +17,13 @@ use sp_state_machine::{Backend, InMemoryBackend};
 
 use sp_core::{blake2_256, Blake2Hasher, Decode, H256};
 use sp_runtime::traits::Block as BlockT;
-use sp_version::RuntimeVersion;
 
 use sp_api::runtime_decl_for_core::CoreV4;
+use sp_version::RuntimeVersion;
 
 use crate::{
     account::AccountId,
+    mock_runtime_api_dispatch,
     rpc_types::{
         AccountData, BlockHash, Bytes, ChainType, Hash, Header, Index, Number, NumberOrHex,
         Properties, RpcMethods, SignedBlock, StorageChangeSet, StorageData, StorageKey,
@@ -145,7 +146,17 @@ impl MockRpcServer {
         Ok(RpcMethods::Unsafe)
     }
 
-    /// System
+    fn call(&self, name: String, bytes: Bytes, hash: Option<Hash>) -> RpcResult<Bytes> {
+        let db = self.db.lock().unwrap();
+        let h = hash.unwrap_or(db.head.hash());
+        let backend = match db.blocks.get(&h) {
+            Some(b) => b.backend.clone(),
+            None => return Ok("Fail".to_string()),
+        };
+        let ret = mock_runtime_api_dispatch(backend, name, bytes)?;
+        Ok(format!("0x{}", hex::encode(&ret[..])))
+    }
+
     async fn nonce(&self, account: AccountId) -> RpcResult<Index> {
         let value = match get_prefixed_storage(
             &self.db,
@@ -282,7 +293,6 @@ pub trait MockApi<AccountId, Number, Hash, Header, BlockHash, SignedBlock> {
     #[method(name = "state_call", aliases = ["state_callAt"], blocking)]
     fn call(&self, name: String, bytes: Bytes, hash: Option<Hash>) -> RpcResult<Bytes>;
 
-    /// System
     #[method(name = "system_accountNextIndex", aliases = ["account_nextIndex"])]
     async fn nonce(&self, account: AccountId) -> RpcResult<Index>;
 }
@@ -476,10 +486,9 @@ impl MockApiServer<AccountId, Number, Hash, Header, BlockHash, SignedBlock> for 
             "----> call(name={:?}, bytes={:?}, hash={:?})",
             name, bytes, hash
         );
-        Ok("".to_string())
+        self.call(name, bytes, hash)
     }
 
-    /// System
     async fn nonce(&self, account: AccountId) -> RpcResult<Index> {
         println!("----> nonce(account={:?})", account);
         self.nonce(account).await

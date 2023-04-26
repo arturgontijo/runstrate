@@ -5,16 +5,24 @@ mod rpc;
 mod rpc_types;
 
 /// Add your runtime here -------------------------------------------
-use mock_runtime::{Address, Runtime as TargetRuntime, RuntimeOrigin, System, UncheckedExtrinsic};
+use mock_runtime::{
+    api::dispatch as runtime_api_dispatch, Address, Runtime, RuntimeOrigin, System,
+    UncheckedExtrinsic,
+};
+
+// use node_template_runtime::{
+//     api::dispatch as runtime_api_dispatch, Address, Runtime, RuntimeOrigin, System,
+//     UncheckedExtrinsic,
+// };
 
 // use kusama_runtime::{
-//     Address, Runtime as TargetRuntime, RuntimeOrigin,
-//     System, UncheckedExtrinsic,
+//     api::dispatch as runtime_api_dispatch, Address, Runtime, RuntimeOrigin, System,
+//     UncheckedExtrinsic,
 // };
-//
+
 // use statemine_runtime::{
-//     Address, Runtime as TargetRuntime, RuntimeOrigin,
-//     System, UncheckedExtrinsic,
+//     api::dispatch as runtime_api_dispatch, Address, Runtime, RuntimeOrigin, System,
+//     UncheckedExtrinsic,
 // };
 
 use std::time::SystemTime;
@@ -26,30 +34,30 @@ use std::{
 };
 
 use clap::Parser;
-use jsonrpsee::{server::ServerBuilder, RpcModule};
+use jsonrpsee::{core::Error as RpcError, server::ServerBuilder, RpcModule};
+
+use pallet_timestamp::Now;
+use pallet_transaction_payment::ChargeTransactionPayment;
 
 use codec::Decode;
 use frame_support::dispatch::{DispatchResultWithPostInfo, GetDispatchInfo};
-use pallet_timestamp::Now;
 use sc_client_api::StorageNotifications;
+use sc_executor::with_externalities_safe;
 use sp_core::{blake2_256, Blake2Hasher, Encode, H256};
 use sp_runtime::{
     generic,
     traits::{BlakeTwo256, Block as BlockT, Dispatchable, Header as HeaderT, SignedExtension},
     DispatchError, SaturatedConversion,
 };
-use sp_state_machine::{Backend, InMemoryBackend};
-
-use pallet_transaction_payment::ChargeTransactionPayment;
+use sp_state_machine::{Backend, Ext, InMemoryBackend, OverlayedChanges, StorageTransactionCache};
 
 use crate::account::{get_account_id, AccountId};
 use crate::externalities::new_test_ext;
 use crate::rpc::{MockApiServer, MockRpcServer};
 use crate::rpc_types::{BlockHash, BlockNumber, StorageKey, TransactionStatus};
 
-pub type Runtime = TargetRuntime;
 pub type Extrinsic = UncheckedExtrinsic;
-pub type Context = frame_system::ChainContext<TargetRuntime>;
+
 pub type Header = generic::Header<BlockNumber, BlakeTwo256>;
 pub type Block = generic::Block<Header, Extrinsic>;
 
@@ -106,6 +114,27 @@ async fn run_server(db: Arc<Mutex<Database>>) -> anyhow::Result<()> {
     println!("Listening on port ws://{}", addr);
     handle.stopped().await;
     Ok(())
+}
+
+pub fn mock_runtime_api_dispatch(
+    backend: InMemoryBackend<Blake2Hasher>,
+    method: String,
+    bytes: String,
+) -> Result<Vec<u8>, RpcError> {
+    let err_msg = format!("RuntimeApi call(method={}) failed.", method);
+
+    let mut overlay = OverlayedChanges::default();
+    let mut cache = StorageTransactionCache::default();
+    let mut ext = Ext::new(&mut overlay, &mut cache, &backend, None);
+
+    let data = hex::decode(&bytes[2..])
+        .map_err(|_| RpcError::Custom("Cannot decode bytes data.".to_string()))?;
+
+    with_externalities_safe(&mut ext, move || {
+        runtime_api_dispatch(method.as_str(), &data[..])
+    })
+    .map(|r| r.unwrap_or_default())
+    .map_err(|_| RpcError::Custom(err_msg))
 }
 
 fn hex_to_xt(bytes: String) -> Result<Extrinsic, ()> {
@@ -216,7 +245,6 @@ async fn main() -> anyhow::Result<()> {
 
         let (mut extrinsics, mut invalid) = check_pending_extrinsics(db.pool.clone());
 
-        // TODO: Make it a cli arg + channel.
         if args.block_time == 0 {
             while extrinsics.is_empty() {
                 drop(db);
