@@ -61,7 +61,6 @@ pub type Extrinsic = UncheckedExtrinsic;
 pub type Header = generic::Header<BlockNumber, BlakeTwo256>;
 pub type Block = generic::Block<Header, Extrinsic>;
 
-pub const ENDPOINT: &str = "127.0.0.1:9944";
 pub const MEGABYTE: u32 = 1025 * 1024;
 
 pub type ExtrinsicHashAndStatus = (Vec<(H256, Extrinsic)>, Vec<(H256, ())>);
@@ -98,14 +97,14 @@ impl std::ops::DerefMut for Database {
     }
 }
 
-async fn run_server(db: Arc<Mutex<Database>>) -> anyhow::Result<()> {
+async fn run_server(db: Arc<Mutex<Database>>, endpoint: String) -> anyhow::Result<()> {
     let server = ServerBuilder::new()
         .max_request_body_size(15 * MEGABYTE)
         .max_response_body_size(15 * MEGABYTE)
         .max_connections(100)
         .max_subscriptions_per_connection(1024)
         .ping_interval(time::Duration::from_secs(30))
-        .build(ENDPOINT)
+        .build(endpoint)
         .await?;
     let mut module = RpcModule::new(());
     module.merge(MockRpcServer::new(db).into_rpc())?;
@@ -235,7 +234,10 @@ async fn main() -> anyhow::Result<()> {
 
     println!("GenesisBlock: {:04} ({:?})", block_number, block.hash());
 
-    tokio::spawn(run_server(mutex_db.clone()));
+    tokio::spawn(run_server(
+        mutex_db.clone(),
+        format!("{}:{}", args.host, args.port),
+    ));
 
     loop {
         block_number += 1;
