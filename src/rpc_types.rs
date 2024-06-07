@@ -7,8 +7,8 @@ use sp_runtime::{
     MultiSignature, Justifications
 };
 
-// use solochain_template_runtime::{Runtime, UncheckedExtrinsic};
-use kusama_runtime::{Runtime, UncheckedExtrinsic};
+// use mock_runtime::{Runtime, UncheckedExtrinsic};
+use solochain_template_runtime::{Runtime, UncheckedExtrinsic};
 
 pub type Nonce = u32;
 pub type BlockNumber = u32;

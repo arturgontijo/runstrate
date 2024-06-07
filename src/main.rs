@@ -4,24 +4,17 @@ mod externalities;
 mod rpc;
 mod rpc_types;
 
-/// Add your runtime here -------------------------------------------
+/// Add your runtime here -------------------------------------------------------------
 // use mock_runtime::{
 //     api::dispatch as runtime_api_dispatch, Address, Runtime, RuntimeOrigin, System,
 // };
 
-// use solochain_template_runtime::{
-//     api::dispatch as runtime_api_dispatch, Address, Runtime, RuntimeOrigin, System,
-// };
-
-use kusama_runtime::{
+use solochain_template_runtime::{
     api::dispatch as runtime_api_dispatch, Address, Runtime, RuntimeOrigin, System,
 };
+// ------------------------------------------------------------------------------------
 
-// use statemine_runtime::{
-//     api::dispatch as runtime_api_dispatch, Address, Runtime, RuntimeOrigin, System,
-// };
-
-use std::time::{Duration, SystemTime};
+use std::time::SystemTime;
 use std::{
     collections::HashMap,
     default::Default,
@@ -46,7 +39,7 @@ use sp_runtime::{
 };
 use sp_state_machine::{Backend, Ext, InMemoryBackend, OverlayedChanges};
 
-use crate::account::{get_account_id};
+use crate::account::get_account_id;
 use crate::externalities::new_test_ext;
 use crate::rpc::{MockApiServer, MockRpcServer};
 use crate::rpc_types::{

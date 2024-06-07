@@ -13,17 +13,15 @@ use std::{
 };
 
 use sc_client_api::StorageNotifications;
-use sc_rpc::{utils::{pipe_from_stream, spawn_subscription_task}, SubscriptionTaskExecutor};
 use sp_state_machine::{Backend, InMemoryBackend};
 
 use sp_core::{blake2_256, Blake2Hasher, Decode, H256};
 use sp_runtime::traits::Block as BlockT;
 
-use sp_api::runtime_decl_for_core::CoreV4;
+use sp_api::runtime_decl_for_core::CoreV5;
 use sp_version::RuntimeVersion;
 
-// use solochain_template_runtime::Runtime;
-use kusama_runtime::Runtime;
+use solochain_template_runtime::Runtime;
 
 use crate::{
     mock_runtime_api_dispatch,
@@ -156,9 +154,8 @@ impl MockRpcServer {
             Some(b) => b.backend.clone(),
             None => return Ok("Fail".to_string()),
         };
-        // let ret = mock_runtime_api_dispatch(backend, name, bytes)?;
-        // Ok(format!("0x{}", hex::encode(&ret[..])))
-        Ok(format!("0x"))
+        let ret = mock_runtime_api_dispatch(backend, name, bytes)?;
+        Ok(format!("0x{}", hex::encode(&ret[..])))
     }
 
     async fn nonce(&self, account: AccountId) -> RpcResult<Nonce> {
