@@ -1,8 +1,7 @@
-use crate::{get_account_id};
+use crate::{get_account_id, AccountId};
 
 use sp_runtime::BuildStorage;
 use sp_storage::Storage;
-use polkadot_primitives::AccountId;
 
 // use mock_runtime::{BalancesConfig, SudoConfig};
 

@@ -7,22 +7,18 @@ mod rpc_types;
 /// Add your runtime here -------------------------------------------
 // use mock_runtime::{
 //     api::dispatch as runtime_api_dispatch, Address, Runtime, RuntimeOrigin, System,
-//     UncheckedExtrinsic,
 // };
 
 // use solochain_template_runtime::{
 //     api::dispatch as runtime_api_dispatch, Address, Runtime, RuntimeOrigin, System,
-//     UncheckedExtrinsic,
 // };
 
 use kusama_runtime::{
-    api::dispatch as runtime_api_dispatch, Address, Block, Runtime, RuntimeOrigin, System,
-    UncheckedExtrinsic,
+    api::dispatch as runtime_api_dispatch, Address, Runtime, RuntimeOrigin, System,
 };
 
 // use statemine_runtime::{
 //     api::dispatch as runtime_api_dispatch, Address, Runtime, RuntimeOrigin, System,
-//     UncheckedExtrinsic,
 // };
 
 use std::time::{Duration, SystemTime};
@@ -50,18 +46,14 @@ use sp_runtime::{
 };
 use sp_state_machine::{Backend, Ext, InMemoryBackend, OverlayedChanges};
 
-use polkadot_primitives::{AccountId, BlockNumber, Header};
-
 use crate::account::{get_account_id};
 use crate::externalities::new_test_ext;
 use crate::rpc::{MockApiServer, MockRpcServer};
-use crate::rpc_types::{BlockHash, StorageKey, TransactionStatus};
-
-pub type Extrinsic = UncheckedExtrinsic;
-
-pub const MEGABYTE: u32 = 1025 * 1024;
-
-pub type ExtrinsicHashAndStatus = (Vec<(H256, Extrinsic)>, Vec<(H256, ())>);
+use crate::rpc_types::{
+    AccountId, Block, Header, BlockNumber, BlockHash,
+    Extrinsic, ExtrinsicHashAndStatus, StorageKey, TransactionStatus,
+    MEGABYTE,
+};
 
 pub struct BlockChainData {
     pub head: Block,

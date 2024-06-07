@@ -1,9 +1,8 @@
 use sp_core::{sr25519, Pair, Public};
 use sp_runtime::{
     traits::{IdentifyAccount, Verify},
-    MultiSignature,
 };
-use polkadot_primitives::{AccountId, Signature};
+use crate::rpc_types::{AccountId, Signature};
 
 /// Generate a crypto pair from seed.
 pub fn get_from_seed<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Public {

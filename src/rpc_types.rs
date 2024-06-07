@@ -1,22 +1,29 @@
 use serde::{Deserialize, Serialize};
 
 use sp_core::{Encode, H256};
-use sp_runtime::{generic, Justifications};
-use sp_runtime::traits::BlakeTwo256;
-
-use polkadot_primitives::{BlockNumber, Header};
-
-// use solochain_template_runtime::{
-//     api::dispatch as runtime_api_dispatch, Address, Runtime, RuntimeOrigin, System,
-//     UncheckedExtrinsic,
-// };
-
-use kusama_runtime::{
-    api::dispatch as runtime_api_dispatch, Address, Block, Runtime, RuntimeOrigin, System,
-    UncheckedExtrinsic,
+use sp_runtime::{
+    generic,
+    traits::{IdentifyAccount, BlakeTwo256, Verify},
+    MultiSignature, Justifications
 };
 
+// use solochain_template_runtime::{Runtime, UncheckedExtrinsic};
+use kusama_runtime::{Runtime, UncheckedExtrinsic};
+
+pub type Nonce = u32;
+pub type BlockNumber = u32;
+pub type Signature = MultiSignature;
+pub type AccountId = <<Signature as Verify>::Signer as IdentifyAccount>::AccountId;
 pub type AccountData = <Runtime as frame_system::Config>::AccountData;
+
+pub type Extrinsic = UncheckedExtrinsic;
+
+pub type Header = generic::Header<BlockNumber, BlakeTwo256>;
+pub type Block = generic::Block<Header, Extrinsic>;
+
+pub const MEGABYTE: u32 = 1025 * 1024;
+
+pub type ExtrinsicHashAndStatus = (Vec<(H256, Extrinsic)>, Vec<(H256, ())>);
 
 pub type Properties = serde_json::map::Map<String, serde_json::Value>;
 
