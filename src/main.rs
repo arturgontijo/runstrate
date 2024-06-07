@@ -9,7 +9,7 @@ mod rpc_types;
 //     api::dispatch as runtime_api_dispatch, Address, Runtime, RuntimeOrigin, System,
 // };
 
-use solochain_template_runtime::{
+use kusama_runtime::{
     api::dispatch as runtime_api_dispatch, Address, Runtime, RuntimeOrigin, System,
 };
 // ------------------------------------------------------------------------------------

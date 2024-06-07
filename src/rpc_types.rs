@@ -8,7 +8,7 @@ use sp_runtime::{
 };
 
 // use mock_runtime::{Runtime, UncheckedExtrinsic};
-use solochain_template_runtime::{Runtime, UncheckedExtrinsic};
+use kusama_runtime::{Runtime, UncheckedExtrinsic};
 
 pub type Nonce = u32;
 pub type BlockNumber = u32;
