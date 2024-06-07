@@ -13,6 +13,7 @@ use std::{
 };
 
 use sc_client_api::StorageNotifications;
+use sc_rpc::{utils::{pipe_from_stream, spawn_subscription_task}, SubscriptionTaskExecutor};
 use sp_state_machine::{Backend, InMemoryBackend};
 
 use sp_core::{blake2_256, Blake2Hasher, Decode, H256};
@@ -21,15 +22,26 @@ use sp_runtime::traits::Block as BlockT;
 use sp_api::runtime_decl_for_core::CoreV4;
 use sp_version::RuntimeVersion;
 
+use polkadot_primitives::{AccountId, BlockNumber, Nonce, Header};
+
+// use solochain_template_runtime::{
+//     api::dispatch as runtime_api_dispatch, Address, Runtime, RuntimeOrigin, System,
+//     UncheckedExtrinsic,
+// };
+
+use kusama_runtime::{
+    api::dispatch as runtime_api_dispatch, Address, Block, Runtime, RuntimeOrigin, System,
+    UncheckedExtrinsic,
+};
+
 use crate::{
-    account::AccountId,
     mock_runtime_api_dispatch,
     rpc_types::{
-        AccountData, BlockHash, Bytes, ChainType, Hash, Header, Index, Number, NumberOrHex,
+        AccountData, BlockHash, Bytes, ChainType, Hash, Number, NumberOrHex,
         Properties, RpcMethods, SignedBlock, StorageChangeSet, StorageData, StorageKey,
         TransactionStatus,
     },
-    Block, Database, Runtime,
+    Database,
 };
 
 pub struct MockRpcServer {
@@ -153,11 +165,12 @@ impl MockRpcServer {
             Some(b) => b.backend.clone(),
             None => return Ok("Fail".to_string()),
         };
-        let ret = mock_runtime_api_dispatch(backend, name, bytes)?;
-        Ok(format!("0x{}", hex::encode(&ret[..])))
+        // let ret = mock_runtime_api_dispatch(backend, name, bytes)?;
+        // Ok(format!("0x{}", hex::encode(&ret[..])))
+        Ok(format!("0x"))
     }
 
-    async fn nonce(&self, account: AccountId) -> RpcResult<Index> {
+    async fn nonce(&self, account: AccountId) -> RpcResult<Nonce> {
         let value = match get_prefixed_storage(
             &self.db,
             "System",
@@ -168,7 +181,7 @@ impl MockRpcServer {
             None => return Ok(0),
         };
         let account_data =
-            match frame_system::AccountInfo::<Index, AccountData>::decode(&mut &value[..]) {
+            match frame_system::AccountInfo::<Nonce, AccountData>::decode(&mut &value[..]) {
                 Ok(a) => a,
                 _ => return Ok(0),
             };
@@ -294,7 +307,7 @@ pub trait MockApi<AccountId, Number, Hash, Header, BlockHash, SignedBlock> {
     fn call(&self, name: String, bytes: Bytes, hash: Option<Hash>) -> RpcResult<Bytes>;
 
     #[method(name = "system_accountNextIndex", aliases = ["account_nextIndex"])]
-    async fn nonce(&self, account: AccountId) -> RpcResult<Index>;
+    async fn nonce(&self, account: AccountId) -> RpcResult<Nonce>;
 }
 
 #[async_trait]
@@ -489,7 +502,7 @@ impl MockApiServer<AccountId, Number, Hash, Header, BlockHash, SignedBlock> for 
         self.call(name, bytes, hash)
     }
 
-    async fn nonce(&self, account: AccountId) -> RpcResult<Index> {
+    async fn nonce(&self, account: AccountId) -> RpcResult<Nonce> {
         println!("----> nonce(account={:?})", account);
         self.nonce(account).await
     }

@@ -15,57 +15,82 @@ targets = ["x86_64-unknown-linux-gnu"]
 name = "runstrate"
 
 [dependencies]
-anyhow = "1"
+anyhow = { version = "1.0.86" }
+#jsonrpsee = { version = "0.22.5", features = ["client-core", "macros", "server-core", "server"] }
 jsonrpsee = { version = "0.16.2", features = ["server", "client", "macros"] }
 hex = { version = "0.4.3", default-features = false }
-clap = { version = "4.2.2" }
 
-futures = { version = "0.3.21" }
-tokio = { version = "1.16", features = ["full"] }
+clap = { version = "4.5.0", features = ["derive"] }
+futures = { version = "0.3.30", features = ["thread-pool"] }
 
-serde = "1.0.136"
-serde_json = "1.0.85"
+tokio = { version = "1.36.0", features = ["full"] }
+serde = { version = "1.0.197", default-features = true, features = ["derive"] }
+serde_json = { version = "1.0.114", default-features = true }
 
-codec = { package = "parity-scale-codec", version = "3.2.2" }
-scale-info = { version = "2.1.1", default-features = false, features = ["derive"] }
+codec = { package = "parity-scale-codec", version = "=3.6.9", features = ["derive", "max-encoded-len"], default-features = false }
+scale-info = { version = "2.10.0", features = ["derive"], default-features = false }
 
-sp-core = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.41" }
-sp-io = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.41" }
-sp-runtime = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.41" }
-sp-state-machine = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.41" }
-sp-version = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.41" }
-sp-api = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.41" }
-sc-client-api = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.41" }
-sc-service = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.41" }
-sc-transaction-pool-api = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.41" }
-sp-transaction-pool = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.41" }
+sp-core = { version = "29.0.0", default-features = false }
+sp-io = { version = "31.0.0", default-features = false }
+sp-runtime = { version = "32.0.0", default-features = false }
 
-sc-executor = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.41" }
+sp-version = { version = "30.0.0", default-features = false }
+sp-api = { version = "27.0.0", default-features = false }
+sp-storage = { version = "20.0.0", default-features = false }
+sc-service = { version = "0.36.0", default-features = false }
+sp-transaction-pool = { version = "27.0.0", default-features = false }
 
-frame-support = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.41" }
-frame-system = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.41" }
-frame-executive = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.41" }
+sp-state-machine = { version = "0.36.0", default-features = false }
+sc-client-api = { version = "29.0.0", default-features = false }
+sc-transaction-pool-api = { version = "29.0.0", default-features = false }
+sc-executor = { version = "0.33.0", default-features = false }
+sc-rpc = { version = "35.0.0", default-features = false }
 
-# Pallets
-pallet-timestamp = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.41" }
-pallet-transaction-payment = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.41" }
-pallet-transaction-payment-rpc-runtime-api = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.41" }
+frame-support = { version = "29.0.2", features = ["tuples-96"], default-features = false }
+frame-system = { version = "29.0.0", default-features = false }
+frame-executive = { version = "29.0.0", default-features = false }
+
+polkadot-primitives = { version = "8.0.1", default-features = false }
+
+## Pallets
+pallet-timestamp = { version = "28.0.0", default-features = false }
+pallet-transaction-payment = { version = "29.0.0", default-features = false }
+pallet-transaction-payment-rpc-runtime-api = { version = "29.0.0", default-features = false }
 
 # Runtime
-mock-runtime = { path = "runtime" }
+#mock-runtime = { path = "runtime" }
 
-#node-template-runtime = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.41" }
-#kusama-runtime = { default-features = false, git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.41" }
-#statemine-runtime = { default-features = false, git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.41" }
+#solochain-template-runtime = { git = "https://github.com/paritytech/polkadot-sdk", brach = "release-polkadot-v1.12.0" }
+kusama-runtime = { package = "staging-kusama-runtime", git = "https://github.com/polkadot-fellows/runtimes", tag = "v1.2.4" }
 
 [features]
 default = ["std"]
 std = [
     "codec/std",
+    "frame-executive/std",
     "frame-support/std",
     "frame-system/std",
-    "mock-runtime/std",
-#    "node-template-runtime/std",
-#    "kusama-runtime/std",
+
+    "polkadot-primitives/std",
+
+    "scale-info/std",
+    "sp-core/std",
+    "sp-io/std",
+    "sp-runtime/std",
+    "sp-storage/std",
+    "sp-transaction-pool/std",
+    "sp-version/std",
+    "sp-api/std",
+
+	"pallet-timestamp/std",
+	"pallet-transaction-payment-rpc-runtime-api/std",
+	"pallet-transaction-payment/std",
+
+#    "mock-runtime/std",
+
+#    "solochain-template-runtime/std",
+#    "kitchensink-runtime/std",
+#    "polkadot-runtime/std",
+    "kusama-runtime/std",
 #    "statemine-runtime/std",
 ]

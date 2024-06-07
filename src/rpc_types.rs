@@ -1,16 +1,24 @@
 use serde::{Deserialize, Serialize};
 
 use sp_core::{Encode, H256};
-use sp_runtime::Justifications;
+use sp_runtime::{generic, Justifications};
+use sp_runtime::traits::BlakeTwo256;
 
-use crate::{Block, Runtime};
+use polkadot_primitives::{BlockNumber, Header};
+
+// use solochain_template_runtime::{
+//     api::dispatch as runtime_api_dispatch, Address, Runtime, RuntimeOrigin, System,
+//     UncheckedExtrinsic,
+// };
+
+use kusama_runtime::{
+    api::dispatch as runtime_api_dispatch, Address, Block, Runtime, RuntimeOrigin, System,
+    UncheckedExtrinsic,
+};
+
+pub type AccountData = <Runtime as frame_system::Config>::AccountData;
 
 pub type Properties = serde_json::map::Map<String, serde_json::Value>;
-
-pub type Header = <Runtime as frame_system::Config>::Header;
-pub type Index = <Runtime as frame_system::Config>::Index;
-pub type AccountData = <Runtime as frame_system::Config>::AccountData;
-pub type BlockNumber = <Runtime as frame_system::Config>::BlockNumber;
 
 pub type Number = u64;
 pub type Hash = H256;
@@ -60,7 +68,7 @@ impl MockSignedBlock {
 pub type SignedBlock = MockSignedBlock;
 
 /// Storage change set
-#[derive(Serialize, Deserialize, PartialEq, Eq, Debug)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
 pub struct StorageChangeSet<Hash> {
     /// Block hash
     pub block: Hash,
