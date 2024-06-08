@@ -1,16 +1,30 @@
 use serde::{Deserialize, Serialize};
 
 use sp_core::{Encode, H256};
-use sp_runtime::Justifications;
+use sp_runtime::{
+    generic,
+    traits::{IdentifyAccount, BlakeTwo256, Verify},
+    MultiSignature, Justifications
+};
 
-use crate::{Block, Runtime};
+use mock_runtime::{Runtime, UncheckedExtrinsic};
+
+pub type Nonce = u32;
+pub type BlockNumber = u32;
+pub type Signature = MultiSignature;
+pub type AccountId = <<Signature as Verify>::Signer as IdentifyAccount>::AccountId;
+pub type AccountData = <Runtime as frame_system::Config>::AccountData;
+
+pub type Extrinsic = UncheckedExtrinsic;
+
+pub type Header = generic::Header<BlockNumber, BlakeTwo256>;
+pub type Block = generic::Block<Header, Extrinsic>;
+
+pub const MEGABYTE: u32 = 1025 * 1024;
+
+pub type ExtrinsicHashAndStatus = (Vec<(H256, Extrinsic)>, Vec<(H256, ())>);
 
 pub type Properties = serde_json::map::Map<String, serde_json::Value>;
-
-pub type Header = <Runtime as frame_system::Config>::Header;
-pub type Index = <Runtime as frame_system::Config>::Index;
-pub type AccountData = <Runtime as frame_system::Config>::AccountData;
-pub type BlockNumber = <Runtime as frame_system::Config>::BlockNumber;
 
 pub type Number = u64;
 pub type Hash = H256;
@@ -60,7 +74,7 @@ impl MockSignedBlock {
 pub type SignedBlock = MockSignedBlock;
 
 /// Storage change set
-#[derive(Serialize, Deserialize, PartialEq, Eq, Debug)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
 pub struct StorageChangeSet<Hash> {
     /// Block hash
     pub block: Hash,

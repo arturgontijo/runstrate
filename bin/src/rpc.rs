@@ -18,18 +18,19 @@ use sp_state_machine::{Backend, InMemoryBackend};
 use sp_core::{blake2_256, Blake2Hasher, Decode, H256};
 use sp_runtime::traits::Block as BlockT;
 
-use sp_api::runtime_decl_for_core::CoreV4;
+use sp_api::runtime_decl_for_core::CoreV5;
 use sp_version::RuntimeVersion;
 
+use mock_runtime::Runtime;
+
 use crate::{
-    account::AccountId,
     mock_runtime_api_dispatch,
     rpc_types::{
-        AccountData, BlockHash, Bytes, ChainType, Hash, Header, Index, Number, NumberOrHex,
+        AccountId, AccountData, BlockHash, Bytes, ChainType, Hash, Number, NumberOrHex,
         Properties, RpcMethods, SignedBlock, StorageChangeSet, StorageData, StorageKey,
-        TransactionStatus,
+        TransactionStatus, Block, Header, Nonce, 
     },
-    Block, Database, Runtime,
+    Database,
 };
 
 pub struct MockRpcServer {
@@ -120,7 +121,7 @@ impl MockRpcServer {
     }
 
     async fn system_version(&self) -> RpcResult<String> {
-        Ok("v0.0.2".to_string())
+        Ok("0.0.2".to_string())
     }
 
     async fn system_chain(&self) -> RpcResult<String> {
@@ -157,7 +158,7 @@ impl MockRpcServer {
         Ok(format!("0x{}", hex::encode(&ret[..])))
     }
 
-    async fn nonce(&self, account: AccountId) -> RpcResult<Index> {
+    async fn nonce(&self, account: AccountId) -> RpcResult<Nonce> {
         let value = match get_prefixed_storage(
             &self.db,
             "System",
@@ -168,7 +169,7 @@ impl MockRpcServer {
             None => return Ok(0),
         };
         let account_data =
-            match frame_system::AccountInfo::<Index, AccountData>::decode(&mut &value[..]) {
+            match frame_system::AccountInfo::<Nonce, AccountData>::decode(&mut &value[..]) {
                 Ok(a) => a,
                 _ => return Ok(0),
             };
@@ -294,7 +295,7 @@ pub trait MockApi<AccountId, Number, Hash, Header, BlockHash, SignedBlock> {
     fn call(&self, name: String, bytes: Bytes, hash: Option<Hash>) -> RpcResult<Bytes>;
 
     #[method(name = "system_accountNextIndex", aliases = ["account_nextIndex"])]
-    async fn nonce(&self, account: AccountId) -> RpcResult<Index>;
+    async fn nonce(&self, account: AccountId) -> RpcResult<Nonce>;
 }
 
 #[async_trait]
@@ -489,7 +490,7 @@ impl MockApiServer<AccountId, Number, Hash, Header, BlockHash, SignedBlock> for 
         self.call(name, bytes, hash)
     }
 
-    async fn nonce(&self, account: AccountId) -> RpcResult<Index> {
+    async fn nonce(&self, account: AccountId) -> RpcResult<Nonce> {
         println!("----> nonce(account={:?})", account);
         self.nonce(account).await
     }

@@ -12,52 +12,57 @@ repository = "https://github.com/arturgontijo/runstrate/"
 targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
-codec = { package = "parity-scale-codec", version = "3.2.2", default-features = false, features = [
-	"derive",
-] }
-scale-info = { version = "2.1.1", default-features = false, features = ["derive"] }
-frame-support = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.41" }
-frame-system = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.41" }
-frame-system-rpc-runtime-api = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.41" }
-frame-executive = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.41" }
-sp-api = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.41" }
-sp-block-builder = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.41" }
-sp-core = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.41" }
-sp-inherents = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.41" }
-sp-io = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.41" }
-sp-runtime = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.41" }
-sp-version = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.41" }
-sp-std = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.41" }
-sp-transaction-pool = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.41" }
+codec = { workspace = true, features = ["derive"], default-features = false }
+scale-info = { workspace = true, features = ["derive", "serde"], default-features = false }
+
+frame-support = { workspace = true, features = ["experimental"], default-features = false }
+frame-system = { workspace = true, default-features = false }
+frame-executive = { workspace = true, default-features = false }
+frame-system-rpc-runtime-api = { workspace = true, default-features = false }
+
+sp-api = { workspace = true, default-features = false }
+sp-block-builder = { workspace = true, default-features = false }
+sp-core = { workspace = true, features = ["serde"], default-features = false }
+sp-inherents = { workspace = true, default-features = false }
+sp-io = { workspace = true, default-features = false }
+sp-runtime = { workspace = true, features = ["serde"], default-features = false }
+sp-version = { workspace = true, features = ["serde"], default-features = false }
+sp-std = { workspace = true, default-features = false }
+sp-transaction-pool = { workspace = true, default-features = false }
+sp-genesis-builder = { workspace = true, default-features = false }
 
 # Pallets
-pallet-timestamp = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.41" }
-pallet-balances = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.41" }
-pallet-transaction-payment = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.41" }
-pallet-transaction-payment-rpc-runtime-api = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.41" }
-pallet-sudo = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.41" }
+pallet-timestamp = { workspace = true, default-features = false }
+pallet-balances = { workspace = true, default-features = false }
+pallet-transaction-payment = { workspace = true, default-features = false }
+pallet-transaction-payment-rpc-runtime-api = { workspace = true, default-features = false }
+pallet-sudo = { workspace = true, default-features = false }
 
 # Local Dependencies
-pallet-template = { version = "4.0.0-dev", default-features = false, path = "../pallets/template" }
+pallet-template = { workspace = true, default-features = false }
 
 [features]
 default = ["std"]
 std = [
 	"codec/std",
-	"frame-executive/std",
+	"scale-info/std",
+
 	"frame-support/std",
 	"frame-system/std",
 	"frame-system-rpc-runtime-api/std",
-	"scale-info/std",
+	"frame-executive/std",
+
 	"sp-api/std",
-	"sp-core/std",
 	"sp-block-builder/std",
+	"sp-core/std",
 	"sp-inherents/std",
 	"sp-io/std",
 	"sp-runtime/std",
 	"sp-version/std",
 	"sp-std/std",
 	"sp-transaction-pool/std",
+	"sp-genesis-builder/std",
+
 	"pallet-timestamp/std",
 	"pallet-balances/std",
 	"pallet-transaction-payment/std",
