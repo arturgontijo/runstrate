@@ -5,11 +5,7 @@ mod rpc;
 mod rpc_types;
 
 /// Add your runtime here -------------------------------------------------------------
-// use mock_runtime::{
-//     api::dispatch as runtime_api_dispatch, Address, Runtime, RuntimeOrigin, System,
-// };
-
-use kusama_runtime::{
+use mock_runtime::{
     api::dispatch as runtime_api_dispatch, Address, Runtime, RuntimeOrigin, System,
 };
 // ------------------------------------------------------------------------------------

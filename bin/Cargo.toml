@@ -1,0 +1,82 @@
+[package]
+name = "runstrate"
+version = "0.0.2"
+description = "Fast way to test a Substrate Runtime via RPC."
+authors = ["Artur Gontijo <https://github.com/arturgontijo>"]
+edition = "2021"
+license = "Unlicense"
+publish = false
+repository = "https://github.com/arturgontijo/runstrate/"
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
+
+[[bin]]
+name = "runstrate"
+
+[dependencies]
+anyhow = { workspace = true }
+jsonrpsee = { workspace = true, features = ["server", "client", "macros"] }
+hex = { workspace = true, default-features = false }
+
+clap = { workspace = true, features = ["derive"] }
+futures = { workspace = true, features = ["thread-pool"] }
+
+tokio = { workspace = true, features = ["full"] }
+serde = { workspace = true, features = ["derive"], default-features = true }
+serde_json = { workspace = true, default-features = true }
+
+codec = { workspace = true, default-features = false }
+scale-info = { workspace = true, default-features = false }
+
+sp-core = { workspace = true, default-features = false }
+sp-io = { workspace = true, default-features = false }
+sp-runtime = { workspace = true, default-features = false }
+
+sp-version = { workspace = true, default-features = false }
+sp-api = { workspace = true, default-features = false }
+sp-storage = { workspace = true, default-features = false }
+sc-service = { workspace = true, default-features = false }
+sp-transaction-pool = { workspace = true, default-features = false }
+
+sp-state-machine = { workspace = true, default-features = false }
+sc-client-api = { workspace = true, default-features = false }
+sc-transaction-pool-api = { workspace = true, default-features = false }
+sc-executor = { workspace = true, default-features = false }
+sc-rpc = { workspace = true, default-features = false }
+
+frame-support = { workspace = true, default-features = false }
+frame-system = { workspace = true, default-features = false }
+frame-executive = { workspace = true, default-features = false }
+
+## Pallets
+pallet-timestamp = { workspace = true, default-features = false }
+pallet-transaction-payment = { workspace = true, default-features = false }
+pallet-transaction-payment-rpc-runtime-api = { workspace = true, default-features = false }
+
+# Runtime (+deps)
+mock-runtime = { workspace = true, default-features = false }
+
+[features]
+default = ["std"]
+std = [
+    "codec/std",
+    "frame-executive/std",
+    "frame-support/std",
+    "frame-system/std",
+
+    "scale-info/std",
+    "sp-core/std",
+    "sp-io/std",
+    "sp-runtime/std",
+    "sp-storage/std",
+    "sp-transaction-pool/std",
+    "sp-version/std",
+    "sp-api/std",
+
+	"pallet-timestamp/std",
+	"pallet-transaction-payment-rpc-runtime-api/std",
+	"pallet-transaction-payment/std",
+
+    "mock-runtime/std",
+]

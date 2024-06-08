@@ -18,10 +18,10 @@ use sp_state_machine::{Backend, InMemoryBackend};
 use sp_core::{blake2_256, Blake2Hasher, Decode, H256};
 use sp_runtime::traits::Block as BlockT;
 
-use sp_api::runtime_decl_for_core::CoreV4;
+use sp_api::runtime_decl_for_core::CoreV5;
 use sp_version::RuntimeVersion;
 
-use kusama_runtime::Runtime;
+use mock_runtime::Runtime;
 
 use crate::{
     mock_runtime_api_dispatch,
@@ -121,7 +121,7 @@ impl MockRpcServer {
     }
 
     async fn system_version(&self) -> RpcResult<String> {
-        Ok("v0.0.2".to_string())
+        Ok("0.0.2".to_string())
     }
 
     async fn system_chain(&self) -> RpcResult<String> {
