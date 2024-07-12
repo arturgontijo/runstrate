@@ -18,7 +18,6 @@ use sp_state_machine::{Backend, InMemoryBackend};
 use sp_core::{blake2_256, Blake2Hasher, Decode, H256};
 use sp_runtime::traits::Block as BlockT;
 
-use sp_api::runtime_decl_for_core::CoreV5;
 use sp_version::RuntimeVersion;
 
 use mock_runtime::Runtime;
@@ -71,7 +70,9 @@ impl MockRpcServer {
     }
 
     async fn runtime_version(&self, _hash: Option<NumberOrHex>) -> RpcResult<RuntimeVersion> {
-        Ok(Runtime::version())
+        let db = self.db.lock().unwrap();
+        println!("----> runtime_version(spec_version={:?})", db.runtime_version.spec_version);
+        Ok(db.runtime_version.clone())
     }
 
     fn storage(&self, key: StorageKey, hash: Option<Hash>) -> RpcResult<Option<StorageData>> {
@@ -321,7 +322,6 @@ impl MockApiServer<AccountId, Number, Hash, Header, BlockHash, SignedBlock> for 
     }
 
     async fn runtime_version(&self, hash: Option<NumberOrHex>) -> RpcResult<RuntimeVersion> {
-        println!("----> runtime_version(hash={:?})", hash);
         self.runtime_version(hash).await
     }
 
@@ -351,10 +351,13 @@ impl MockApiServer<AccountId, Number, Hash, Header, BlockHash, SignedBlock> for 
     fn subscribe_runtime_version(&self, mut sink: SubscriptionSink) -> SubscriptionResult {
         println!("----> subscribe_runtime_version()");
         let _ = sink.accept();
+        let db_ref = self.db.clone();
         thread::spawn(move || -> anyhow::Result<()> {
             loop {
                 // TODO: Not good...channels?
-                sink.send(&Runtime::version())?;
+                let db = db_ref.lock().unwrap();
+                sink.send(&db.runtime_version)?;
+                drop(db);
                 if sink.is_closed() {
                     break;
                 };

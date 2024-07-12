@@ -6031,7 +6031,7 @@ dependencies = [
 
 [[package]]
 name = "runstrate"
-version = "0.0.2"
+version = "0.0.3"
 dependencies = [
  "anyhow",
  "clap",
@@ -6046,6 +6046,7 @@ dependencies = [
  "pallet-transaction-payment",
  "pallet-transaction-payment-rpc-runtime-api",
  "parity-scale-codec",
+ "rand 0.8.5",
  "sc-client-api",
  "sc-executor",
  "sc-rpc",

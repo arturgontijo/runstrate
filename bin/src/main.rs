@@ -18,6 +18,10 @@ use std::{
     thread, time,
 };
 
+use rand::Rng;
+use sp_api::runtime_decl_for_core::CoreV5;
+use sp_version::RuntimeVersion;
+
 use clap::Parser;
 use jsonrpsee::{core::Error as RpcError, server::ServerBuilder, RpcModule};
 
@@ -52,6 +56,7 @@ pub struct BlockChainData {
     pub extrinsics_status: HashMap<H256, TransactionStatus<H256, BlockHash>>,
     pub subs_storage_key: Vec<StorageKey>,
     pub notifications: StorageNotifications<Block>,
+    pub runtime_version: RuntimeVersion,
 }
 
 pub struct StorageAt {
@@ -198,6 +203,12 @@ async fn main() -> anyhow::Result<()> {
         backend: externalities.as_backend(),
     };
 
+    let mut rng = rand::thread_rng();
+    let runtime_version: RuntimeVersion = RuntimeVersion {
+        spec_version: rng.gen_range(0..100),
+        ..Runtime::version()
+    };
+
     let mutex_db = Arc::new(Mutex::new(Database {
         inner: BlockChainData {
             head: block.clone(),
@@ -207,6 +218,7 @@ async fn main() -> anyhow::Result<()> {
             extrinsics_status: HashMap::new(),
             subs_storage_key: vec![],
             notifications: StorageNotifications::new(None),
+            runtime_version,
         },
     }));
 
@@ -337,6 +349,6 @@ async fn main() -> anyhow::Result<()> {
         println!("BlockNumber: {:04} ({:?})", block_number, block.hash());
 
         // Giving some time to RPCs be processed.
-        thread::sleep(time::Duration::from_millis(args.block_time));
+        tokio::time::sleep(time::Duration::from_millis(args.block_time)).await;
     }
 }
